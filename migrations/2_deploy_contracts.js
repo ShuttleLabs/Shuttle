@@ -1,9 +1,9 @@
-var SimpleMultiSig = artifacts.require('./SimpleMultiSig.sol')
+var GasExpressPool = artifacts.require('./GasExpressPool.sol')
 
 module.exports = function(deployer) {
   // deployment steps
   // rinkeby
-  deployer.deploy(SimpleMultiSig, 4)
+  deployer.deploy(GasExpressPool)
 
   // mainnet
   // deployer.deploy(SimpleMultiSig, 1)

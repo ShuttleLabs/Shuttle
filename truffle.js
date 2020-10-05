@@ -20,28 +20,24 @@ module.exports = {
   quiet: false,
   networks: {
     development: {
-      host: 'localhost',
-      port: 7545,
-      network_id: '*' // Match any network id
+      host: 'http://18.235.170.28',
+      port: 8545,
+      network_id: '1' // Match any network id
     },
     rinkeby: {
       provider: function() {
         return new PrivateKeyProvider(
           privateKey,
-          'https://rinkeby.infura.io/v3/9775236247814824bc231e65b1d4972a'
+          'https://rinkeby.infura.io/v3/046d597601b14bb3ac0c73fa71f5ff23'
         )
       },
       network_id: '4',
       gas: 6000000,
-      gasPrice: 20000000000
+      gasPrice: 100000000000
     },
     mainnet: {
-      provider: function() {
-        return new PrivateKeyProvider(
-          privateKey,
-          'https://mainnet.infura.io/v3/9775236247814824bc231e65b1d4972a'
-        )
-      },
+      host: '18.235.170.28',
+      port: 8545,
       network_id: '1',
       gas: 7000000,
       gasPrice: 10000000000
@@ -53,5 +49,16 @@ module.exports = {
       currency: 'USD',
       gasPrice: 20
     } // See options below
-  }
+  },
+  compilers: {
+    solc: {
+      version: "0.6.6",
+      settings: {
+        optimizer: {
+          enabled: true,
+          runs: 1500
+        }
+      }
+    }
+ }
 }
