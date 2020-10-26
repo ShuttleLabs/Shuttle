@@ -1,6 +1,12 @@
 const GasExpressPool = artifacts.require('GasExpressPool')
 const amount = web3.utils.toWei('0.01', 'ether')
 let instance
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
 async function execute(instance, num, isFarming) {
   let traders = []
   let value = []
@@ -33,7 +39,7 @@ async function execute(instance, num, isFarming) {
 
   let rv = await instance.parseTraderData.call(bytes)
   console.log(bytes, rv)
-  return instance.execute(bytes)
+  //return instance.execute(bytes)
 }
 
 async function getGlobal() {
@@ -43,19 +49,27 @@ async function getGlobal() {
   console.log(`rewardPerShare: ${rewardPerShare} totalSharesPerCycle ${totalSharesPerCycle} currentCycleStartingTime ${currentCycleStartingTime}`)
 }
 
-const NUM_TRADER = 5
+const NUM_TRADER = 8
 module.exports = async function(callback) {
-  instance = await GasExpressPool.deployed()
-  //await instance.updateCycle()
-   await getGlobal()
+   instance = await GasExpressPool.deployed()
+   //await instance.updateCycle()
+   //await getGlobal()
 
+   let gasPerTrader = []
    for (let i = 0; i < NUM_TRADER; i++) {
-    await instance.deposit(true, {value: amount})
+    console.log('before')
+    //const receiptTrader = await instance.deposit(true, {value: amount})
     console.log(`done ${i}/${NUM_TRADER}`)
+    //gasPerTrader.push(receiptTrader.receipt.gasUsed)
+    //await sleep(1000)
   }
 
   const receipt = await execute(instance, NUM_TRADER, true)
   console.log(receipt)
+  for(let i = 0; i < gasPerTrader.length; i++) {
+    console.log('# trader: ', receipt.receipt.gasUsed/NUM_TRADER + gasPerTrader[i])
+  }
+  console.log('avg gas (execute): ', receipt.receipt.gasUsed/NUM_TRADER)
   callback()
 
 

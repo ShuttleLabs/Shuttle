@@ -26,12 +26,15 @@
   "homepage": "https://github.com/christianlundkvist/simple-multisig#readme",
   "devDependencies": {
     "@openzeppelin/contracts": "^3.2.0",
+    "@truffle/hdwallet-provider": "^1.0.41-1",
     "bluebird": "^3.7.0",
     "eth-gas-reporter": "^0.2.12",
+    "eth-json-rpc-filters": "^4.2.1",
     "eth-lightwallet": "^4.0.0",
     "prettier": "^1.18.2",
     "prettier-plugin-solidity": "^1.0.0-alpha.34",
-    "solhint-plugin-prettier": "0.0.3"
+    "solhint-plugin-prettier": "0.0.3",
+    "truffle-privatekey-provider": "^1.5.0"
   },
   "dependencies": {
     "@truffle/config": "^1.2.3",
@@ -39,7 +42,7 @@
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
     "babel-polyfill": "^6.26.0",
     "babel-register": "^6.26.0",
-    "truffle-privatekey-provider": "^1.3.0",
+    "sleep-promise": "^8.0.1",
     "web3": "^1.2.1"
   }
 }

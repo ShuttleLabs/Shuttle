@@ -28,7 +28,7 @@ module.exports = {
       provider: function() {
         return new PrivateKeyProvider(
           privateKey,
-          'https://rinkeby.infura.io/v3/046d597601b14bb3ac0c73fa71f5ff23'
+          'https://rinkeby.infura.io/v3/9775236247814824bc231e65b1d4972a'
         )
       },
       network_id: '4',
