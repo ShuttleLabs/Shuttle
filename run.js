@@ -24,6 +24,11 @@ async function execute(instance, num, isFarming) {
   bytes = bytes + web3.utils.padLeft(web3.utils.toHex(1000), 4).slice(2)
 
   for (let i = 0; i < num; i++) {
+    // 1 byte for farming
+    bytes = bytes + web3.utils.padLeft(web3.utils.toHex(isFarming), 2).slice(2)
+  }
+
+  for (let i = 0; i < num; i++) {
     bytes = bytes + 'D3cEd3b16C8977ED0E345D162D982B899e978588'
   }
 
@@ -32,14 +37,14 @@ async function execute(instance, num, isFarming) {
     bytes = bytes + web3.utils.padLeft(web3.utils.toHex(amount), 64).slice(2)
   }
 
-  for (let i = 0; i < num; i++) {
+  /* for (let i = 0; i < num; i++) {
     // 1 byte for farming
     bytes = bytes + web3.utils.padLeft(web3.utils.toHex(isFarming), 2).slice(2)
-  }
+  } */
 
-  let rv = await instance.parseTraderData.call(bytes)
-  console.log(bytes, rv)
-  //return instance.execute(bytes)
+  //let rv = await instance.parseTraderData.call(bytes)
+  //console.log(bytes, rv)
+  return instance.execute(bytes)
 }
 
 async function getGlobal() {
@@ -49,19 +54,19 @@ async function getGlobal() {
   console.log(`rewardPerShare: ${rewardPerShare} totalSharesPerCycle ${totalSharesPerCycle} currentCycleStartingTime ${currentCycleStartingTime}`)
 }
 
-const NUM_TRADER = 8
+const NUM_TRADER = 13
 module.exports = async function(callback) {
    instance = await GasExpressPool.deployed()
    //await instance.updateCycle()
-   //await getGlobal()
+   await getGlobal()
 
    let gasPerTrader = []
    for (let i = 0; i < NUM_TRADER; i++) {
     console.log('before')
-    //const receiptTrader = await instance.deposit(true, {value: amount})
+    const receiptTrader = await instance.deposit(true, {value: amount})
     console.log(`done ${i}/${NUM_TRADER}`)
-    //gasPerTrader.push(receiptTrader.receipt.gasUsed)
-    //await sleep(1000)
+    gasPerTrader.push(receiptTrader.receipt.gasUsed)
+    await sleep(1000)
   }
 
   const receipt = await execute(instance, NUM_TRADER, true)

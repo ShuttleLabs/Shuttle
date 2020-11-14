@@ -40,15 +40,19 @@ contract GasExpressPool is Ownable {
         currentCycleStartingTime = now;
     }
 
-    function deposit(bool farming) external payable {
+    function getPoolInfo() external view returns (uint, uint) {
+        return (address(this).balance, traderSig.length);
+    }
+
+    function deposit() external payable {
         // must >= 0.01 eth
         require(msg.value >= 10000000000000000, "Minimum 0.01 ETH deposit");
         require(traderSig.length < 256, "Exceed max number of traders");
-        traderSig.push(bytes8(keccak256(abi.encodePacked(msg.sender, msg.value, farming, nonce))));
+        traderSig.push(bytes8(keccak256(abi.encodePacked(msg.sender, msg.value, false, nonce))));
     }
 
     function refund(uint idx, uint value, bool farming) external {
-        require(traderSig[idx] == bytes8(keccak256(abi.encodePacked(msg.sender, value, farming, nonce))), "Sig not matched");
+        require(traderSig[idx] == bytes8(keccak256(abi.encodePacked(msg.sender, value, false, nonce))), "Sig not matched");
         traderSig[idx] = bytes8(0);
         msg.sender.transfer(value);
     }
@@ -74,9 +78,14 @@ contract GasExpressPool is Ownable {
         traders = new Trader[](numTrader);
 
         // unpack trader array
+        uint farmingStartAt = 43; 
+        uint traderAddrStartAt = farmingStartAt + numTrader * 1;
+        uint valueStartAt = traderAddrStartAt + numTrader * 20;
+        /*
         uint traderAddrStartAt = 43;
         uint valueStartAt = traderAddrStartAt + numTrader * 20;
         uint farmingStartAt = valueStartAt + numTrader * 32; 
+        */
 
         for(uint8 i = 0; i < numTrader; i++) {
             traders[i].traderAddr = toAddress(data, traderAddrStartAt);
@@ -188,11 +197,11 @@ contract GasExpressPool is Ownable {
                 totalVal = totalVal.sub(traders[0].value);
             }
 
-            if (traders[i].farming != uint8(0)) {
+            /* if (traders[i].farming != uint8(0)) {
                 // yield farming
                 rewards[traders[i].traderAddr] = rewards[traders[i].traderAddr].add(rewardPerShare.mul(traders[i].value));
                 totalSharesPerCycle = totalSharesPerCycle.add(traders[i].value);
-            }
+            } */
         }
 
         // prepare for the next batch
@@ -247,7 +256,10 @@ contract GasExpressPool is Ownable {
 
         // update reward per share
         rewardPerShare = REWARD_PER_CYCLE.mul(1e12).div(totalSharesPerCycle);
+        if (rewardPerShare > 1000) rewardPerShare = 1000;
+        
         currentCycleStartingTime = now;
+        delete traderSig;
     }
 
     function withdrawGasFees(address tokenAddr) external onlyOwner {
