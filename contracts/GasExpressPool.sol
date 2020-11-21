@@ -19,16 +19,21 @@ contract GasExpressPool is Ownable {
     uint public constant CYCLE_LENGTH = 1 minutes;
     uint public constant REWARD_PER_CYCLE = 1000000 * 1e18; // 1 million tokens per week;
 
-    // global var
-    uint public rewardPerShare = 100;
-    uint public totalSharesPerCycle;
-    uint public currentCycleStartingTime;
-    mapping(address => uint) public totalGas;
-    
+    struct Pool {
+        uint8 nonce;
+        address[] path;
+        uint rewardPerShare;
+        uint totalSharesPerCycle;
+        uint currentCycleStartingTime;
+        uint balance;
+        bytes8[] traderSig;
+    }
 
-    bytes8[] public traderSig;
+    mapping(address => uint) public totalGas;
+    Pool[] public pools;
+
     mapping(address => uint) public rewards;
-    uint8 nonce;
+    
 
     struct Trader {
         address traderAddr;
@@ -37,79 +42,94 @@ contract GasExpressPool is Ownable {
     }
 
     constructor () public {
-        currentCycleStartingTime = now;
+        addPool(WETH_ADDR, DAI_ADDR);
     }
 
-    function getPoolInfo() external view returns (uint, uint) {
-        return (address(this).balance, traderSig.length);
+    function addPool(address inputToken, address outputToken) public {
+        Pool memory p;
+        
+        p.path = new address[](2);
+        p.path[0] = inputToken;
+        p.path[1] = outputToken;
+
+        p.rewardPerShare = 1;
+        p.totalSharesPerCycle = 0;
+        p.balance = 0;
+        p.nonce = 0;
+        p.currentCycleStartingTime = now;
+        pools.push(p);
     }
 
-    function deposit() external payable {
+    function getPoolInfo(uint8 poolId) external view returns (uint, uint) {
+        return (pools[poolId].balance, pools[poolId].traderSig.length);
+    }
+
+    function deposit(uint8 poolId, uint val) external payable {
         // must >= 0.01 eth
-        require(msg.value >= 10000000000000000, "Minimum 0.01 ETH deposit");
-        require(traderSig.length < 256, "Exceed max number of traders");
-        traderSig.push(bytes8(keccak256(abi.encodePacked(msg.sender, msg.value, false, nonce))));
+        //require(msg.value >= 10000000000000000, "Minimum 0.01 ETH deposit");
+        //require(traderSig.length < 256, "Exceed max number of traders");
+        Pool storage pool = pools[poolId];
+        if(pool.path[0] == WETH_ADDR) {
+            pool.traderSig.push(bytes8(keccak256(abi.encodePacked(msg.sender, msg.value, pool.nonce))));
+            pool.balance += msg.value;
+        } else {
+            // deposit erc20 token
+            IERC20(pool.path[0]).transferFrom(msg.sender, address(this), val);
+            pool.traderSig.push(bytes8(keccak256(abi.encodePacked(msg.sender, val, pool.nonce))));
+            pool.balance += val;
+        }
     }
 
-    function refund(uint idx, uint value, bool farming) external {
-        require(traderSig[idx] == bytes8(keccak256(abi.encodePacked(msg.sender, value, false, nonce))), "Sig not matched");
-        traderSig[idx] = bytes8(0);
-        msg.sender.transfer(value);
+    function refund(uint8 poolId, uint idx, uint value) external {
+        Pool storage pool = pools[poolId];
+        require(pool.traderSig[idx] == bytes8(keccak256(abi.encodePacked(msg.sender, value, pool.nonce))), "Sig not matched");
+        pool.traderSig[idx] = bytes8(0);
+        if(pool.path[0] == WETH_ADDR) {
+            msg.sender.transfer(value);
+        } else {
+            // erc20 token
+            IERC20(pool.path[0]).transfer(msg.sender, value);
+        }
     }
 
     function redeemRewards() external returns (uint) {
         uint rewardTokens = rewards[msg.sender].div(1e12);
         rewards[msg.sender] = 0;
         IERC20(REWARD_TOKEN_ADDR).transfer(msg.sender, rewardTokens);
-        //sushi.mint(devaddr, sushiReward.div(10))
-        // sushi.mint(address(this), sushiReward)
     }
 
-    function getTraderData(bytes memory data) internal pure returns(Trader[] memory traders, address[] memory path, uint16 gasPrice) {
+    function getTraderData(bytes memory data) internal pure returns(Trader[] memory traders, uint16 gasPrice) {
         // exclude path and gasPrice
         uint8 numTrader = toUint8(data, 0);
-    
-        path = new address[](2);
-        path[0] = toAddress(data, 1);
-        path[1] = toAddress(data, 21);
 
-        gasPrice = toUint16(data, 41);
+        gasPrice = toUint16(data, 1);
 
         traders = new Trader[](numTrader);
 
         // unpack trader array
-        uint farmingStartAt = 43; 
-        uint traderAddrStartAt = farmingStartAt + numTrader * 1;
+        uint traderAddrStartAt = 21;
         uint valueStartAt = traderAddrStartAt + numTrader * 20;
-        /*
-        uint traderAddrStartAt = 43;
-        uint valueStartAt = traderAddrStartAt + numTrader * 20;
-        uint farmingStartAt = valueStartAt + numTrader * 32; 
-        */
+
 
         for(uint8 i = 0; i < numTrader; i++) {
             traders[i].traderAddr = toAddress(data, traderAddrStartAt);
             traders[i].value = toUint256(data, valueStartAt);
-            traders[i].farming = toUint8(data, farmingStartAt);
 
             traderAddrStartAt += 20;
             valueStartAt += 32;
-            farmingStartAt += 1;
         }
     }
 
-    function parseTraderData(bytes memory data) public returns (bytes memory, uint8, address[] memory, uint[] memory, uint8[] memory, address[] memory, uint16) {
+    function parseTraderData(bytes memory data) public returns (bytes memory, uint8, address[] memory, uint[] memory, uint16) {
         uint8 numTrader = toUint8(data, 0);
-        (Trader[] memory traders, address[] memory path, uint16 gasPrice) = getTraderData(data);
+        (Trader[] memory traders, uint16 gasPrice) = getTraderData(data);
         address[] memory traderAddr = new address[](traders.length);
         uint[] memory value = new uint[](traders.length);
-        uint8[] memory farming = new uint8[](traders.length);
         for (uint i = 0; i< traders.length; i++) {
             traderAddr[i] = traders[i].traderAddr;
             value[i] = traders[i].value;
-            farming[i] = traders[i].farming;
         }
-        return (data, numTrader, traderAddr, value, farming, path, gasPrice);
+        return (data, numTrader, traderAddr, value, gasPrice);
     }
 
     function toAddress(bytes memory _bytes, uint256 _start) internal pure returns (address) {
@@ -154,59 +174,53 @@ contract GasExpressPool is Ownable {
     }
 
 
-    function execute(bytes calldata data) external onlyOwner {
-        (Trader[] memory traders, address[] memory path, uint16 gasPrice) = getTraderData(data);
-
+    function execute(uint8 poolId, bytes calldata data) external onlyOwner {
+        (Trader[] memory traders,  uint16 gasPrice) = getTraderData(data);
+        Pool storage pool = pools[poolId];
         
         // assure gasPrice is within normal range (<= 2000 gwei)
         require(gasPrice <= 200000000000, "Exceed max gas price");
         
-        uint totalVal = 0;
-        for(uint8 i = 0; i < traders.length; i++) {
-            // ignore cancelled trades
-            if (traderSig[i] == bytes8(0)) continue;
+        uint gasCostInOutputTokens = getGasCost(traders.length, gasPrice, pool.path[1]);
 
-            totalVal = totalVal.add(traders[i].value);
-        }
-
-        uint gasCostInOutputTokens = getGasCost(traders.length, gasPrice, path[1]);
-
-        // cumulate gas cost in input tokens
-        totalGas[path[0]] = totalGas[path[0]].add(gasCostInOutputTokens);
+        // cumulate gas cost in output tokens
+        totalGas[pool.path[1]] = totalGas[pool.path[1]].add(gasCostInOutputTokens);
 
         // execute swap
-        uint totalReceived = swap(path, totalVal);
+        uint totalReceived = swap(pool.path, pool.balance);
 
-        // tracking remaining output balance as we
-        // distribute output tokens to traders
-        uint bal = totalReceived;
-
-        for(uint8 i = 0; i < traders.length; i++) {
-            // ignore cancelled trades
-            if (traderSig[i] == bytes8(0)) continue;
-
-            // verify sig
-            require(bytes8(keccak256(abi.encodePacked(traders[i].traderAddr, traders[i].value, traders[i].farming, nonce))) == traderSig[i], "Sig not matched");
-    
-            // distribute output tokens
-            bal = distribute(traders[i], totalVal, totalReceived, bal, i == traderSig.length - 1);
-
-            if (i == 0) {
-                // no gas cost for the first trader
-                totalReceived = bal.sub(gasCostInOutputTokens);
-                totalVal = totalVal.sub(traders[0].value);
-            }
-
-            /* if (traders[i].farming != uint8(0)) {
-                // yield farming
-                rewards[traders[i].traderAddr] = rewards[traders[i].traderAddr].add(rewardPerShare.mul(traders[i].value));
-                totalSharesPerCycle = totalSharesPerCycle.add(traders[i].value);
-            } */
+        // distribute to first trader with gas reimbursement
+        if (pool.traderSig[0] != bytes8(0)) {
+            require(bytes8(keccak256(abi.encodePacked(traders[0].traderAddr, traders[0].value, pool.nonce))) == pool.traderSig[0], "Sig not matched");
+            distribute(traders[0], pool.path[1], pool.balance, totalReceived);
+            totalReceived = totalReceived.sub(gasCostInOutputTokens);
+            pool.balance = pool.balance.sub(traders[0].value);
         }
 
+        // distribute to the rest
+        for(uint8 i = 1; i < traders.length; i++) {
+            // ignore cancelled trades
+            if (pool.traderSig[i] == bytes8(0)) continue;
+
+            // verify sig
+            require(bytes8(keccak256(abi.encodePacked(traders[i].traderAddr, traders[i].value, pool.nonce))) == pool.traderSig[i], "Sig not matched");
+    
+            // distribute output tokens
+            distribute(traders[i], pool.path[1], pool.balance, totalReceived);
+        }
+
+        // farming
+        for(uint8 i = 0; i < traders.length; i++) {
+            // ignore cancelled trades
+            if (pool.traderSig[i] == bytes8(0)) continue;
+            rewards[traders[i].traderAddr] = rewards[traders[i].traderAddr].add(pool.rewardPerShare.mul(traders[i].value));
+            pool.totalSharesPerCycle = pool.totalSharesPerCycle.add(traders[i].value);
+        }
+
+
         // prepare for the next batch
-        delete traderSig;
-        nonce += 1;
+        delete pool.traderSig;
+        pool.nonce += 1;
     }
 
     function getGasCost(uint numTraders, uint gasPrice, address outputTokenAddr) internal view returns (uint) {
@@ -238,28 +252,24 @@ contract GasExpressPool is Ownable {
         return outputs[1];
     }
 
-    function distribute(Trader memory trader, uint totalVal, uint totalReceived, uint bal, bool isLast) internal returns(uint) {
-            if (!isLast) {
-                uint transferAmount = trader.value.mul(totalReceived).div(totalVal);
-                bal = bal.sub(transferAmount);
-                IERC20(DAI_ADDR).transfer(trader.traderAddr, transferAmount);
+    function distribute(Trader memory trader, address outputToken, uint totalVal, uint totalReceived) internal {
+            uint transferAmount = trader.value.mul(totalReceived).div(totalVal);
+            if(outputToken != WETH_ADDR) {
+                IERC20(outputToken).transfer(trader.traderAddr, transferAmount);
             } else {
-                IERC20(DAI_ADDR).transfer(trader.traderAddr, bal);
-                bal = 0;
+                payable(trader.traderAddr).transfer(transferAmount);
             }
-
-            return bal;
     }
 
-    function updateCycle() external {
-        require(now > currentCycleStartingTime + CYCLE_LENGTH, "Current cycle not finished"); 
+    function updateCycle(uint8 poolId) external {
+        Pool storage pool = pools[poolId];
+        require(now > pool.currentCycleStartingTime + CYCLE_LENGTH, "Current cycle not finished"); 
 
         // update reward per share
-        rewardPerShare = REWARD_PER_CYCLE.mul(1e12).div(totalSharesPerCycle);
-        if (rewardPerShare > 1000) rewardPerShare = 1000;
+        pool.rewardPerShare = REWARD_PER_CYCLE.mul(1e12).div(pool.totalSharesPerCycle);
+        if (pool.rewardPerShare > 1000) pool.rewardPerShare = 1000;
         
-        currentCycleStartingTime = now;
-        delete traderSig;
+        pool.currentCycleStartingTime = now;
     }
 
     function withdrawGasFees(address tokenAddr) external onlyOwner {

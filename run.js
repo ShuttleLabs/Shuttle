@@ -16,17 +16,8 @@ async function execute(instance, num, isFarming) {
 
   // 1 byte for numTrader
   bytes = bytes + web3.utils.padLeft(web3.utils.toHex(num), 2).slice(2)
-
-  // 20 bytes for token addr, path ETH -> DAI
-  bytes = bytes + 'c778417E063141139Fce010982780140Aa0cD5Ab' + 'c7AD46e0b8a400Bb3C915120d284AafbA8fc4735'
-
   // 2 bytes for gasPrice (in unit gwei)
   bytes = bytes + web3.utils.padLeft(web3.utils.toHex(1000), 4).slice(2)
-
-  for (let i = 0; i < num; i++) {
-    // 1 byte for farming
-    bytes = bytes + web3.utils.padLeft(web3.utils.toHex(isFarming), 2).slice(2)
-  }
 
   for (let i = 0; i < num; i++) {
     bytes = bytes + 'D3cEd3b16C8977ED0E345D162D982B899e978588'
@@ -44,7 +35,7 @@ async function execute(instance, num, isFarming) {
 
   //let rv = await instance.parseTraderData.call(bytes)
   //console.log(bytes, rv)
-  return instance.execute(bytes)
+  return instance.execute(0, bytes)
 }
 
 async function getGlobal() {
@@ -54,16 +45,16 @@ async function getGlobal() {
   console.log(`rewardPerShare: ${rewardPerShare} totalSharesPerCycle ${totalSharesPerCycle} currentCycleStartingTime ${currentCycleStartingTime}`)
 }
 
-const NUM_TRADER = 13
+const NUM_TRADER = 3
 module.exports = async function(callback) {
    instance = await GasExpressPool.deployed()
    //await instance.updateCycle()
-   await getGlobal()
+   //await getGlobal()
 
    let gasPerTrader = []
    for (let i = 0; i < NUM_TRADER; i++) {
     console.log('before')
-    const receiptTrader = await instance.deposit(true, {value: amount})
+    const receiptTrader = await instance.deposit(0, amount, {value: amount})
     console.log(`done ${i}/${NUM_TRADER}`)
     gasPerTrader.push(receiptTrader.receipt.gasUsed)
     await sleep(1000)
