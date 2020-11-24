@@ -4,11 +4,153 @@ pragma experimental ABIEncoderV2;
 import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IERC20.sol';
 import '@uniswap/v2-periphery/contracts/libraries/UniswapV2Library.sol';
-import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+library SafeMath2 {
+    /**
+     * @dev Returns the addition of two unsigned integers, reverting on
+     * overflow.
+     *
+     * Counterpart to Solidity's `+` operator.
+     *
+     * Requirements:
+     *
+     * - Addition cannot overflow.
+     */
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting on
+     * overflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     *
+     * - Subtraction cannot overflow.
+     */
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction overflow");
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
+     * overflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     *
+     * - Subtraction cannot overflow.
+     */
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the multiplication of two unsigned integers, reverting on
+     * overflow.
+     *
+     * Counterpart to Solidity's `*` operator.
+     *
+     * Requirements:
+     *
+     * - Multiplication cannot overflow.
+     */
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+        // benefit is lost if 'b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers. Reverts on
+     * division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     *
+     * - The divisor cannot be zero.
+     */
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
+     * division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     *
+     * - The divisor cannot be zero.
+     */
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     *
+     * - The divisor cannot be zero.
+     */
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts with custom message when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     *
+     * - The divisor cannot be zero.
+     */
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }
+}
+
 contract GasExpressPool is Ownable {
-    using SafeMath for uint256;
+    using SafeMath2 for uint256;
 
     address public constant ROUTER_ADDR = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address public constant FACTORY_ADDR = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
@@ -71,12 +213,10 @@ contract GasExpressPool is Ownable {
         Pool storage pool = pools[poolId];
         if(pool.path[0] == WETH_ADDR) {
             pool.traderSig.push(bytes8(keccak256(abi.encodePacked(msg.sender, msg.value, pool.nonce))));
-            pool.balance += msg.value;
         } else {
             // deposit erc20 token
             IERC20(pool.path[0]).transferFrom(msg.sender, address(this), val);
             pool.traderSig.push(bytes8(keccak256(abi.encodePacked(msg.sender, val, pool.nonce))));
-            pool.balance += val;
         }
     }
 
@@ -107,7 +247,7 @@ contract GasExpressPool is Ownable {
         traders = new Trader[](numTrader);
 
         // unpack trader array
-        uint traderAddrStartAt = 21;
+        uint traderAddrStartAt = 3;
         uint valueStartAt = traderAddrStartAt + numTrader * 20;
 
 
@@ -177,6 +317,12 @@ contract GasExpressPool is Ownable {
     function execute(uint8 poolId, bytes calldata data) external onlyOwner {
         (Trader[] memory traders,  uint16 gasPrice) = getTraderData(data);
         Pool storage pool = pools[poolId];
+
+        uint poolBal = 0;
+        for(uint i = 0; i < traders.length; i++) {
+            if (pool.traderSig[i] == bytes8(0)) continue;
+            poolBal += traders[i].value;
+        }
         
         // assure gasPrice is within normal range (<= 2000 gwei)
         require(gasPrice <= 200000000000, "Exceed max gas price");
@@ -187,14 +333,14 @@ contract GasExpressPool is Ownable {
         totalGas[pool.path[1]] = totalGas[pool.path[1]].add(gasCostInOutputTokens);
 
         // execute swap
-        uint totalReceived = swap(pool.path, pool.balance);
+        uint totalReceived = swap(pool.path, poolBal);
 
         // distribute to first trader with gas reimbursement
         if (pool.traderSig[0] != bytes8(0)) {
             require(bytes8(keccak256(abi.encodePacked(traders[0].traderAddr, traders[0].value, pool.nonce))) == pool.traderSig[0], "Sig not matched");
-            distribute(traders[0], pool.path[1], pool.balance, totalReceived);
+            distribute(traders[0], pool.path[1], poolBal, totalReceived);
             totalReceived = totalReceived.sub(gasCostInOutputTokens);
-            pool.balance = pool.balance.sub(traders[0].value);
+            poolBal = poolBal.sub(traders[0].value);
         }
 
         // distribute to the rest
@@ -206,7 +352,7 @@ contract GasExpressPool is Ownable {
             require(bytes8(keccak256(abi.encodePacked(traders[i].traderAddr, traders[i].value, pool.nonce))) == pool.traderSig[i], "Sig not matched");
     
             // distribute output tokens
-            distribute(traders[i], pool.path[1], pool.balance, totalReceived);
+            distribute(traders[i], pool.path[1], poolBal, totalReceived);
         }
 
         // farming

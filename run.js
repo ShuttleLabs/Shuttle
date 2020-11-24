@@ -33,8 +33,8 @@ async function execute(instance, num, isFarming) {
     bytes = bytes + web3.utils.padLeft(web3.utils.toHex(isFarming), 2).slice(2)
   } */
 
-  //let rv = await instance.parseTraderData.call(bytes)
-  //console.log(bytes, rv)
+  let rv = await instance.parseTraderData.call(bytes)
+  console.log(bytes, rv)
   return instance.execute(0, bytes)
 }
 
@@ -45,7 +45,7 @@ async function getGlobal() {
   console.log(`rewardPerShare: ${rewardPerShare} totalSharesPerCycle ${totalSharesPerCycle} currentCycleStartingTime ${currentCycleStartingTime}`)
 }
 
-const NUM_TRADER = 3
+const NUM_TRADER = 2
 module.exports = async function(callback) {
    instance = await GasExpressPool.deployed()
    //await instance.updateCycle()

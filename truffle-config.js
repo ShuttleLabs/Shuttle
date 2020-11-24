@@ -20,8 +20,8 @@ module.exports = {
   quiet: false,
   networks: {
     development: {
-      host: 'http://18.235.170.28',
-      port: 8545,
+      host: 'http://127.0.0.1',
+      port: 5777,
       network_id: '1' // Match any network id
     },
     rinkeby: {
@@ -33,14 +33,14 @@ module.exports = {
       },
       network_id: '4',
       gas: 6000000,
-      gasPrice: 100000000000
+      gasPrice: 10000000000
     },
     mainnet: {
       host: '18.235.170.28',
       port: 8545,
       network_id: '1',
       gas: 7000000,
-      gasPrice: 10000000000
+      gasPrice: 1000000000
     }
   },
   mocha: {

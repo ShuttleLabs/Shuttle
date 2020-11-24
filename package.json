@@ -26,6 +26,7 @@
   "homepage": "https://github.com/christianlundkvist/simple-multisig#readme",
   "devDependencies": {
     "@openzeppelin/contracts": "^3.2.0",
+    "@truffle/contract": "^4.2.31",
     "@truffle/hdwallet-provider": "^1.0.41-1",
     "bluebird": "^3.7.0",
     "eth-gas-reporter": "^0.2.12",
