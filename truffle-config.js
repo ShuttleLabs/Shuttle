@@ -20,9 +20,9 @@ module.exports = {
   quiet: false,
   networks: {
     development: {
-      host: 'http://127.0.0.1',
-      port: 5777,
-      network_id: '1' // Match any network id
+      host: 'localhost',
+      port: 8545,
+      network_id: '*' // Match any network id
     },
     rinkeby: {
       provider: function() {
